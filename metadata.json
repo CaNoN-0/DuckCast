@@ -1,0 +1,6 @@
+{
+  "name": "DuckCast",
+  "description": "DuckCast is a social prediction market where you make predictions, back your thesis, and see how your track record stacks up.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,188 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap');
+
+@layer base {
+  :root {
+    font-family: 'Geist', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
+    letter-spacing: -0.012em;
+  }
+
+  body {
+    background-color: #ffffff;
+    color: #09090B;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+.font-display {
+  font-family: 'Geist', 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.026em;
+  font-weight: 700;
+}
+
+.font-sans-bold {
+  font-family: 'Geist', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.font-handwriting {
+  font-family: 'Caveat', cursive, sans-serif;
+}
+
+.font-mono-tabular {
+  font-family: 'Geist Mono', 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
+
+/* Squircle continuous superellipse border-radius utilities */
+.squircle {
+  border-radius: 14px;
+}
+.squircle-sm {
+  border-radius: 10px;
+}
+.squircle-md {
+  border-radius: 14px;
+}
+.squircle-lg {
+  border-radius: 18px;
+}
+.squircle-xl {
+  border-radius: 22px;
+}
+.squircle-tab {
+  border-radius: 13px;
+}
+
+.homepage-bg-video {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Animated Flowing Luminous Gradient Border with Glowing Halo */
+@property --beam-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes border-gradient-flow {
+  0% {
+    --beam-angle: 0deg;
+  }
+  100% {
+    --beam-angle: 360deg;
+  }
+}
+
+.flowing-luminous-border,
+.traveling-border-light {
+  position: relative;
+}
+
+/* Crisp Luminous Core Line */
+.flowing-luminous-border::before,
+.traveling-border-light::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--beam-angle, 0deg),
+    #00F5A0 0deg,
+    #00D2FF 45deg,
+    #3B82F6 90deg,
+    #9333EA 135deg,
+    #FF2E63 180deg,
+    #FF6B00 225deg,
+    #FFD000 270deg,
+    #70FF00 315deg,
+    #00F5A0 360deg
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: border-gradient-flow 5s linear infinite;
+  z-index: 10;
+  filter: brightness(1.25);
+}
+
+/* Vivid Luminous Glow Layer */
+.flowing-luminous-border::after,
+.traveling-border-light::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  padding: 4px;
+  background: conic-gradient(
+    from var(--beam-angle, 0deg),
+    #00F5A0 0deg,
+    #00D2FF 45deg,
+    #3B82F6 90deg,
+    #9333EA 135deg,
+    #FF2E63 180deg,
+    #FF6B00 225deg,
+    #FFD000 270deg,
+    #70FF00 315deg,
+    #00F5A0 360deg
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  filter: blur(5px) brightness(1.5) saturate(220%);
+  opacity: 0.95;
+  animation: border-gradient-flow 5s linear infinite;
+  z-index: 9;
+}
+
+/* Prediction Tab & Card Interactive Hover Animations */
+.prediction-tab-card {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease;
+  will-change: transform, box-shadow;
+}
+
+.prediction-tab-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+@keyframes halftone-breathe {
+  0%, 100% {
+    transform: scale(1.05) translate(2px, 1px);
+    opacity: 0.22;
+  }
+  50% {
+    transform: scale(1.09) translate(-2px, -2px);
+    opacity: 0.28;
+  }
+}
+
+.prediction-tab-card:hover .halftone-breathe-anim {
+  animation: halftone-breathe 3.5s ease-in-out infinite;
+}
+
+
+

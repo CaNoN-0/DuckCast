@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DuckCast — Predict what happens next.</title>
+    <meta name="description" content="DuckCast is a social prediction market where you make predictions, back your thesis, and see how your track record stacks up." />
+    <meta property="og:title" content="DuckCast — Predict what happens next." />
+    <meta property="og:description" content="DuckCast is a social prediction market where you make predictions, back your thesis, and see how your track record stacks up." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <script>
+      (function() {
+        try {
+          var win = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : null);
+          if (!win) return;
+          var targets = [win];
+          if (typeof Window !== 'undefined' && Window.prototype) {
+            targets.push(Window.prototype);
+          }
+          targets.forEach(function(target) {
+            try {
+              var desc = Object.getOwnPropertyDescriptor(target, 'fetch');
+              if (desc && desc.get && !desc.set) {
+                var originalGet = desc.get;
+                Object.defineProperty(target, 'fetch', {
+                  get: originalGet,
+                  set: function(val) {
+                    Object.defineProperty(this, 'fetch', {
+                      value: val,
+                      writable: true,
+                      configurable: true,
+                      enumerable: true
+                    });
+                  },
+                  configurable: true,
+                  enumerable: desc.enumerable !== false
+                });
+              }
+            } catch (_) {}
+          });
+
+          // Suppress WalletConnect relay WebSocket retries and logger level 50 errors (per environment guidelines)
+          function isIgnoredError(str) {
+            if (!str) return false;
+            var lower = String(str).toLowerCase();
+            return (
+              lower.indexOf('relay.walletconnect.org') !== -1 ||
+              lower.indexOf('websocket connection failed') !== -1 ||
+              lower.indexOf("couldn't establish socket connection") !== -1 ||
+              lower.indexOf('failed to publish custom payload') !== -1 ||
+              lower.indexOf('publisher') !== -1 ||
+              lower.indexOf('context":"core') !== -1 ||
+              lower.indexOf('level":50') !== -1
+            );
+          }
+
+          var origError = console.error;
+          console.error = function() {
+            try {
+              var text = Array.prototype.slice.call(arguments).map(function(a) {
+                return typeof a === 'object' ? JSON.stringify(a) : String(a);
+              }).join(' ');
+              if (isIgnoredError(text)) {
+                if (console.debug) console.debug.apply(console, arguments);
+                return;
+              }
+            } catch (_) {}
+            origError.apply(console, arguments);
+          };
+
+          win.addEventListener('error', function(event) {
+            var msg = event && (event.message || (event.error && event.error.message)) || '';
+            if (isIgnoredError(msg)) {
+              event.preventDefault();
+              event.stopPropagation();
+              return true;
+            }
+          }, true);
+
+          win.addEventListener('unhandledrejection', function(event) {
+            var reason = event && event.reason;
+            var msg = (reason && (reason.message || String(reason))) || '';
+            if (isIgnoredError(msg)) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }, true);
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-white text-[#09090B] antialiased selection:bg-emerald-500/15 selection:text-emerald-950">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
