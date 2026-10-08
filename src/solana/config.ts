@@ -15,6 +15,7 @@ export interface SolanaNetworkConfig {
 
 // Official Native Solana USDC Mint
 export const SOLANA_USDC_MINT_MAINNET = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+export const SOLANA_USDC_MINT = SOLANA_USDC_MINT_MAINNET;
 // Standard Devnet SPL USDC Mint
 export const SOLANA_USDC_MINT_DEVNET = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
 

@@ -12,7 +12,9 @@ import {
   Check,
   Share2,
   ExternalLink,
-  Info
+  Info,
+  Sparkles,
+  Brain
 } from 'lucide-react';
 import { PredictionMarket, PredictionThesis, RecentTrade } from '../../types/market';
 import { MarketDetailChart } from './MarketDetailChart';
@@ -20,6 +22,7 @@ import { HalftoneBackground } from './HalftoneBackground';
 import { shortenSolanaAddress, getSolscanTxUrl } from '../../solana/config';
 import { formatUsdc } from '../../solana/usdc';
 import { saveTransactionRecord, PredictionTransactionRecord } from '../../payments/predictionTransaction';
+import { AiAnalystPanel } from './AiAnalystPanel';
 
 interface MarketDetailPageProps {
   market: PredictionMarket;
@@ -56,6 +59,9 @@ export function MarketDetailPage({
   const [amountStr, setAmountStr] = useState<string>('50');
   const [tradeSuccess, setTradeSuccess] = useState<string | null>(null);
   const [tradeError, setTradeError] = useState<string | null>(null);
+
+  // AI Analyst state
+  const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
 
   // Thesis input state ("Why do you think so?")
   const [thesisText, setThesisText] = useState('');
@@ -252,6 +258,15 @@ export function MarketDetailPage({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsAiPanelOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-neutral-50 text-[#09090B] border border-neutral-300/80 rounded-[12px] text-xs font-bold transition-all hover:shadow-2xs cursor-pointer shadow-2xs group"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 group-hover:scale-110 transition-transform" />
+              <span>Ask DuckCast AI</span>
+            </button>
+
             {connectedWallet ? (
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-neutral-100 text-[#09090B] rounded-[12px] text-xs font-medium border border-neutral-200">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -304,6 +319,16 @@ export function MarketDetailPage({
                     LIVE NOW
                   </span>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsAiPanelOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-800 bg-neutral-100 hover:bg-neutral-200/90 border border-neutral-200 px-2.5 py-1 rounded transition-colors cursor-pointer group shadow-2xs"
+                  title="Open AI Prediction Analyst"
+                >
+                  <Brain className="w-3.5 h-3.5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                  <span>AI Analysis</span>
+                </button>
 
                 <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-mono-tabular ml-auto">
                   <Clock className="w-3.5 h-3.5 text-neutral-400" />
@@ -432,13 +457,23 @@ export function MarketDetailPage({
                   <span className="text-[11px] text-neutral-500">
                     {connectedWallet ? `Posting as ${connectedWallet.address}` : 'Will post with forecaster tag'}
                   </span>
-                  <button
-                    type="submit"
-                    disabled={!thesisText.trim()}
-                    className="px-4 py-2 bg-[#09090B] hover:bg-neutral-800 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-                  >
-                    Post Thesis
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsAiPanelOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-neutral-100 border border-neutral-300 text-neutral-800 text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-2xs"
+                    >
+                      <Brain className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Critique with AI</span>
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!thesisText.trim()}
+                      className="px-4 py-2 bg-[#09090B] hover:bg-neutral-800 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                    >
+                      Post Thesis
+                    </button>
+                  </div>
                 </div>
 
                 {thesisSubmitted && (
@@ -775,6 +810,19 @@ export function MarketDetailPage({
                 </div>
               </div>
 
+              {/* Unsure? Ask DuckCast AI */}
+              <div className="flex items-center justify-between text-[11px] text-neutral-500 py-1">
+                <span>Unsure which side to take?</span>
+                <button
+                  type="button"
+                  onClick={() => setIsAiPanelOpen(true)}
+                  className="font-bold text-neutral-900 hover:text-emerald-700 flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Sparkles className="w-3 h-3 text-amber-500" />
+                  Ask DuckCast AI
+                </button>
+              </div>
+
               {/* Action Buttons: Buy Yes / Buy No */}
               <div>
                 {connectedWallet ? (
@@ -806,6 +854,15 @@ export function MarketDetailPage({
           </div>
         </div>
       </main>
+
+      {/* DuckCast AI Prediction Analyst Slide-Over Panel */}
+      <AiAnalystPanel
+        isOpen={isAiPanelOpen}
+        onClose={() => setIsAiPanelOpen(false)}
+        market={market}
+        userPositionSide={tradeSide}
+        onDraftThesisFill={(text) => setThesisText(text)}
+      />
     </div>
   );
 }

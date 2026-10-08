@@ -446,12 +446,17 @@ export async function checkExistingConnection(): Promise<ConnectedWalletState | 
     if (!savedWalletId) return null;
 
     const wallets = getAvailableWallets();
-    const targetWallet = wallets.find((w) => w.id === savedWalletId) || wallets.find((w) => w.installed);
+    const targetWallet = wallets.find((w) => w.id === savedWalletId);
     if (!targetWallet || !targetWallet.provider) return null;
 
     const provider = targetWallet.provider;
     // eth_accounts returns granted accounts without prompting the user
-    const accounts = (await provider.request({ method: 'eth_accounts' })) as string[];
+    let accounts: string[] = [];
+    try {
+      accounts = (await provider.request({ method: 'eth_accounts' })) as string[];
+    } catch {
+      return null;
+    }
     if (!accounts || accounts.length === 0) {
       disconnectWallet();
       return null;

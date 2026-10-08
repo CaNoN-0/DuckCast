@@ -1,5 +1,10 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useState } from 'react';
-import { X, Moon, Sun, DollarSign, Bell, Shield, Sliders, Check } from 'lucide-react';
+import { X, Sliders, Bell, Shield, Wallet, Check } from 'lucide-react';
 import { HalftoneBackground } from '../marketplace/HalftoneBackground';
 
 interface SettingsModalProps {
@@ -10,10 +15,19 @@ interface SettingsModalProps {
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   if (!isOpen) return null;
 
-  const [currency, setCurrency] = useState<'USD' | 'EUR' | 'ETH'>('USD');
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [slippage, setSlippage] = useState('1.0');
+  const [defaultAmount, setDefaultAmount] = useState<string>('50');
   const [tradeConfirmation, setTradeConfirmation] = useState(true);
+  const [resolutionNotifications, setResolutionNotifications] = useState(true);
+  const [publicTheses, setPublicTheses] = useState(true);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    setSaved(true);
+    setTimeout(() => {
+      setSaved(false);
+      onClose();
+    }, 400);
+  };
 
   return (
     <div
@@ -27,6 +41,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <HalftoneBackground opacity={0.08} />
 
         <div className="relative z-10">
+          {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-neutral-100">
             <div className="flex items-center gap-2">
               <Sliders className="w-4 h-4 text-emerald-600" />
@@ -44,58 +59,40 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
 
           <div className="space-y-4 py-4">
-            {/* Display Currency */}
+            {/* Default Prediction Amount */}
             <div>
-              <label className="text-xs font-bold text-neutral-700 block mb-1.5">
-                Display Currency
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['USD', 'EUR', 'ETH'] as const).map((curr) => (
-                  <button
-                    key={curr}
-                    type="button"
-                    onClick={() => setCurrency(curr)}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                      currency === curr
-                        ? 'border-emerald-500 bg-emerald-50/80 text-emerald-900 shadow-2xs'
-                        : 'border-neutral-200 bg-neutral-50/60 text-neutral-700 hover:bg-neutral-100'
-                    }`}
-                  >
-                    {curr}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-neutral-700">
+                  Default Prediction Stake
+                </label>
+                <span className="text-[11px] font-mono-tabular text-emerald-700 font-semibold">
+                  Native Solana USDC
+                </span>
               </div>
-            </div>
-
-            {/* Max Slippage Tolerance */}
-            <div>
-              <label className="text-xs font-bold text-neutral-700 block mb-1.5">
-                Max Slippage Tolerance
-              </label>
               <div className="grid grid-cols-4 gap-2">
-                {['0.5', '1.0', '2.5', '5.0'].map((val) => (
+                {['10', '50', '100', '500'].map((val) => (
                   <button
                     key={val}
                     type="button"
-                    onClick={() => setSlippage(val)}
-                    className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                      slippage === val
+                    onClick={() => setDefaultAmount(val)}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer font-mono-tabular ${
+                      defaultAmount === val
                         ? 'border-emerald-500 bg-emerald-50/80 text-emerald-900 shadow-2xs'
                         : 'border-neutral-200 bg-neutral-50/60 text-neutral-700 hover:bg-neutral-100'
                     }`}
                   >
-                    {val}%
+                    ${val}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Toggle Preferences */}
-            <div className="space-y-3 pt-2 border-t border-neutral-100">
+            {/* Notification & Confirmation Preferences */}
+            <div className="space-y-3 pt-3 border-t border-neutral-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-neutral-800">Trade Confirmations</div>
-                  <div className="text-[11px] text-neutral-500">Require one-tap preview before signing</div>
+                  <div className="text-xs font-bold text-neutral-800">Prediction Confirmation</div>
+                  <div className="text-[11px] text-neutral-500">Require one-tap preview before signing on Solana</div>
                 </div>
                 <button
                   type="button"
@@ -110,29 +107,58 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-neutral-800">Sound Effects & Haptics</div>
-                  <div className="text-[11px] text-neutral-500">Audio feedback on prediction placement</div>
+                  <div className="text-xs font-bold text-neutral-800">Resolution Notifications</div>
+                  <div className="text-[11px] text-neutral-500">Alerts when predictions resolve or claims are ready</div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  onClick={() => setResolutionNotifications(!resolutionNotifications)}
                   className={`w-10 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
-                    soundEnabled ? 'bg-emerald-600 justify-end' : 'bg-neutral-300 justify-start'
+                    resolutionNotifications ? 'bg-emerald-600 justify-end' : 'bg-neutral-300 justify-start'
+                  }`}
+                >
+                  <div className="w-4 h-4 rounded-full bg-white shadow-xs" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-neutral-800">Public Thesis Visibility</div>
+                  <div className="text-[11px] text-neutral-500">Display your theses and research in social feeds</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPublicTheses(!publicTheses)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
+                    publicTheses ? 'bg-emerald-600 justify-end' : 'bg-neutral-300 justify-start'
                   }`}
                 >
                   <div className="w-4 h-4 rounded-full bg-white shadow-xs" />
                 </button>
               </div>
             </div>
+
+            {/* Protocol & Currency Badge */}
+            <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200/70 flex items-center justify-between text-xs font-mono-tabular">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="font-semibold text-neutral-700">Settlement Currency</span>
+              </div>
+              <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                USDC (Solana SPL)
+              </span>
+            </div>
           </div>
 
-          <div className="pt-3 border-t border-neutral-100 flex justify-end">
+          <div className="pt-3 border-t border-neutral-100 flex items-center justify-between">
+            <span className="text-[11px] text-neutral-400 font-mono-tabular">Panta Architecture</span>
             <button
               type="button"
-              onClick={onClose}
-              className="px-5 py-2 bg-[#09090B] hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              onClick={handleSave}
+              className="px-5 py-2 bg-[#09090B] hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
             >
-              Done
+              {saved && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+              <span>{saved ? 'Saved' : 'Done'}</span>
             </button>
           </div>
         </div>

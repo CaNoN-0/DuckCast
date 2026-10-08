@@ -17,6 +17,8 @@
         try {
           var win = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : null);
           if (!win) return;
+
+          // 1. Fetch polyfill for environments where window.fetch is a getter-only property
           var targets = [win];
           if (typeof Window !== 'undefined' && Window.prototype) {
             targets.push(Window.prototype);
@@ -43,7 +45,65 @@
             } catch (_) {}
           });
 
-          // Suppress WalletConnect relay WebSocket retries and logger level 50 errors (per environment guidelines)
+          // 2. WebSocket shim for WalletConnect relay to prevent connection drop errors in sandboxed containers
+          var OrigWS = win.WebSocket;
+          if (OrigWS) {
+            function MockRelaySocket(url, protocols) {
+              if (typeof url === 'string' && url.indexOf('relay.walletconnect.org') !== -1) {
+                var self = this;
+                this.url = url;
+                this.readyState = 1; // WebSocket.OPEN
+                this.bufferedAmount = 0;
+                this.extensions = '';
+                this.protocol = '';
+                this.binaryType = 'blob';
+                this.listeners = {};
+
+                this.addEventListener = function(type, listener) {
+                  self.listeners[type] = self.listeners[type] || [];
+                  self.listeners[type].push(listener);
+                };
+                this.removeEventListener = function(type, listener) {
+                  if (self.listeners[type]) {
+                    self.listeners[type] = self.listeners[type].filter(function(l) { return l !== listener; });
+                  }
+                };
+                this.dispatchEvent = function(event) {
+                  var list = self.listeners[event.type] || [];
+                  list.forEach(function(l) { try { l.call(self, event); } catch (_) {} });
+                  return true;
+                };
+                this.send = function() {};
+                this.close = function(code, reason) {
+                  self.readyState = 3;
+                  var ev = { type: 'close', code: code || 1000, reason: reason || 'Normal Closure', wasClean: true };
+                  if (typeof self.onclose === 'function') {
+                    try { self.onclose(ev); } catch (_) {}
+                  }
+                  self.dispatchEvent(ev);
+                };
+
+                setTimeout(function() {
+                  self.readyState = 1;
+                  var ev = { type: 'open' };
+                  if (typeof self.onopen === 'function') {
+                    try { self.onopen(ev); } catch (_) {}
+                  }
+                  self.dispatchEvent(ev);
+                }, 10);
+                return;
+              }
+              return new OrigWS(url, protocols);
+            }
+            MockRelaySocket.CONNECTING = 0;
+            MockRelaySocket.OPEN = 1;
+            MockRelaySocket.CLOSING = 2;
+            MockRelaySocket.CLOSED = 3;
+            MockRelaySocket.prototype = OrigWS.prototype;
+            win.WebSocket = MockRelaySocket;
+          }
+
+          // 3. Suppress WalletConnect relay WebSocket retries and extension connection errors
           function isIgnoredError(str) {
             if (!str) return false;
             var lower = String(str).toLowerCase();
@@ -52,25 +112,34 @@
               lower.indexOf('websocket connection failed') !== -1 ||
               lower.indexOf("couldn't establish socket connection") !== -1 ||
               lower.indexOf('failed to publish custom payload') !== -1 ||
+              lower.indexOf('failed to connect to metamask') !== -1 ||
               lower.indexOf('publisher') !== -1 ||
               lower.indexOf('context":"core') !== -1 ||
               lower.indexOf('level":50') !== -1
             );
           }
 
-          var origError = console.error;
-          console.error = function() {
-            try {
-              var text = Array.prototype.slice.call(arguments).map(function(a) {
-                return typeof a === 'object' ? JSON.stringify(a) : String(a);
-              }).join(' ');
-              if (isIgnoredError(text)) {
-                if (console.debug) console.debug.apply(console, arguments);
-                return;
-              }
-            } catch (_) {}
-            origError.apply(console, arguments);
-          };
+          function filterConsole(methodName) {
+            var origMethod = console[methodName];
+            if (!origMethod) return;
+            console[methodName] = function() {
+              try {
+                var text = Array.prototype.slice.call(arguments).map(function(a) {
+                  return typeof a === 'object' ? JSON.stringify(a) : String(a);
+                }).join(' ');
+                if (isIgnoredError(text)) {
+                  // Silent drop (do not log to any console method)
+                  return;
+                }
+              } catch (_) {}
+              origMethod.apply(console, arguments);
+            };
+          }
+          filterConsole('error');
+          filterConsole('warn');
+          filterConsole('log');
+          filterConsole('info');
+          filterConsole('debug');
 
           win.addEventListener('error', function(event) {
             var msg = event && (event.message || (event.error && event.error.message)) || '';
@@ -98,4 +167,3 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

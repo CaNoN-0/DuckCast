@@ -150,6 +150,15 @@ export interface PredictionMarket {
   commentsCount: number;
   timeline?: MarketTimelineEvent[];
   commentsList?: MarketComment[];
+  // Panta Protocol Architecture Metadata
+  pantaMarketType?: 'standard' | 'breaking';
+  pantaMarketPhase?: 'primary' | 'secondary' | 'resolving' | 'resolved';
+  pantaFeePercent?: number; // 2.0% for primary, 1.5% for secondary
+  disputeWindowEndsAt?: string;
+  disputeStatus?: 'none' | 'disputed' | 'finalized';
+  creatorAddress?: string;
+  creatorRoyaltyPercent?: number;
+  activeBattle?: PredictionBattle;
 }
 
 export interface UserPredictionActivity {
@@ -218,3 +227,33 @@ export interface UserProfileData {
     timestamp: string;
   }[];
 }
+
+export interface PredictionBattle {
+  id: string;
+  marketId: string;
+  marketQuestion: string;
+  category: MarketCategory;
+  userYes: {
+    username: string;
+    handle: string;
+    avatar: string;
+    stakedUsdc: number;
+    entryProb: number;
+    thesis: string;
+    backingVotes: number;
+  };
+  userNo: {
+    username: string;
+    handle: string;
+    avatar: string;
+    stakedUsdc: number;
+    entryProb: number;
+    thesis: string;
+    backingVotes: number;
+  };
+  totalBattlePotUsdc: number;
+  status: 'active' | 'resolved';
+  winnerSide?: 'YES' | 'NO';
+  timeRemaining: string;
+}
+

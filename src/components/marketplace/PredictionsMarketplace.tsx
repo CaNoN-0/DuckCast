@@ -12,7 +12,8 @@ import {
   ArrowUpDown,
   Home,
   X,
-  Filter
+  Filter,
+  Swords
 } from 'lucide-react';
 import {
   PredictionMarket,
@@ -27,6 +28,7 @@ import { CommunitySection } from './CommunitySection';
 import { LeaderboardSection } from './LeaderboardSection';
 import { CreatePredictionModal } from './CreatePredictionModal';
 import { MarketDetailPage } from './MarketDetailPage';
+import { PredictionBattlesSection } from './PredictionBattlesSection';
 import { MenuButton } from '../navigation/MenuDrawer';
 import { shortenSolanaAddress } from '../../solana/config';
 
@@ -79,7 +81,7 @@ export function PredictionsMarketplace({
   // State
   const [markets, setMarkets] = useState<PredictionMarket[]>(MOCK_MARKETS);
   const [selectedCategory, setSelectedCategory] = useState<MarketCategory>('All');
-  const [activeCenterNav, setActiveCenterNav] = useState<'Markets' | 'Live' | 'Trending' | 'New' | 'Ending Soon'>('Markets');
+  const [activeCenterNav, setActiveCenterNav] = useState<'Markets' | 'Battles' | 'Live' | 'Trending' | 'New' | 'Ending Soon'>('Markets');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<MarketSortOption>('Trending');
   const [quickFilter, setQuickFilter] = useState<MarketQuickFilter>('All Markets');
@@ -103,10 +105,12 @@ export function PredictionsMarketplace({
   };
 
   // Center Nav Selection
-  const handleSelectCenterNav = (item: 'Markets' | 'Live' | 'Trending' | 'New' | 'Ending Soon') => {
+  const handleSelectCenterNav = (item: 'Markets' | 'Battles' | 'Live' | 'Trending' | 'New' | 'Ending Soon') => {
     setActiveCenterNav(item);
     if (item === 'Markets') {
       setQuickFilter('All Markets');
+    } else if (item === 'Battles') {
+      showNotification('Prediction Battles: Community-backed head-to-head theses');
     } else if (item === 'Live') {
       setQuickFilter('Live');
     } else if (item === 'Trending') {
@@ -355,7 +359,7 @@ export function PredictionsMarketplace({
 
           {/* Center Navigation: Squircle Border Radius */}
           <nav className="hidden lg:flex items-center gap-1 bg-neutral-100/90 p-1 rounded-[16px] border border-neutral-200/60">
-            {(['Markets', 'Live', 'Trending', 'New', 'Ending Soon'] as const).map((tab) => {
+            {(['Markets', 'Battles', 'Live', 'Trending', 'New', 'Ending Soon'] as const).map((tab) => {
               const isActive = activeCenterNav === tab;
               return (
                 <button
@@ -368,6 +372,7 @@ export function PredictionsMarketplace({
                       : 'text-neutral-600 hover:text-[#09090B]'
                   }`}
                 >
+                  {tab === 'Battles' && <Swords className="w-3 h-3 text-amber-500" />}
                   {tab === 'Live' && (
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   )}
@@ -388,13 +393,32 @@ export function PredictionsMarketplace({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (!searchQuery.trim()) {
+                      showNotification('Enter a market or topic to search.');
+                    } else {
+                      showNotification(`Searching DuckCast · Finding markets related to "${searchQuery}"`);
+                      setTimeout(() => {
+                        if (filteredAndSortedMarkets.length > 0) {
+                          showNotification(`Search complete · Showing results for "${searchQuery}"`);
+                        } else {
+                          showNotification(`No markets found · We couldn't find any markets matching "${searchQuery}"`);
+                        }
+                      }, 350);
+                    }
+                  }
+                }}
                 placeholder="Search..."
                 className="w-full pl-8 pr-3 py-1.5 text-xs font-medium bg-neutral-100 border border-neutral-200/80 rounded-lg focus:outline-none focus:bg-white focus:border-emerald-500 transition-colors"
               />
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => {
+                    setSearchQuery('');
+                    showNotification('Search cleared');
+                  }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
                 >
                   <X className="w-3 h-3" />
@@ -463,13 +487,32 @@ export function PredictionsMarketplace({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (!searchQuery.trim()) {
+                    showNotification('Enter a market or topic to search.');
+                  } else {
+                    showNotification(`Searching DuckCast · Finding markets related to "${searchQuery}"`);
+                    setTimeout(() => {
+                      if (filteredAndSortedMarkets.length > 0) {
+                        showNotification(`Search complete · Showing results for "${searchQuery}"`);
+                      } else {
+                        showNotification(`No markets found · We couldn't find any markets matching "${searchQuery}"`);
+                      }
+                    }, 350);
+                  }
+                }
+              }}
               placeholder="Search markets, events, topics, or users..."
               className="w-full pl-12 pr-10 py-3.5 text-sm sm:text-base font-semibold bg-white border border-neutral-200/90 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-[#09090B] placeholder-neutral-400 shadow-2xs"
             />
             {searchQuery && (
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
+                onClick={() => {
+                  setSearchQuery('');
+                  showNotification('Search cleared');
+                }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -483,6 +526,16 @@ export function PredictionsMarketplace({
           markets={markets}
           onSelectMarket={(m) => handleOpenMarketDetail(m)}
           onFilterChange={(flt) => setQuickFilter(flt)}
+        />
+
+        {/* PREDICTION BATTLES: Signature DuckCast Social Feature */}
+        <PredictionBattlesSection
+          allMarkets={markets}
+          onSelectMarket={(mId) => {
+            const found = markets.find((m) => m.id === mId);
+            if (found) handleOpenMarketDetail(found);
+          }}
+          onShowNotification={showNotification}
         />
 
         {/* MAIN MARKETPLACE HEADER */}
@@ -718,12 +771,12 @@ export function PredictionsMarketplace({
             <button
               type="button"
               onClick={onBackToHome}
-              className="hover:text-[#09090B] transition-colors cursor-pointer"
+              className="hover:text-[#09090B] font-semibold transition-colors cursor-pointer"
             >
-              Back to Landing
+              Return Home
             </button>
             <span>·</span>
-            <span className="font-mono-tabular">26+ Active Markets</span>
+            <span className="font-mono-tabular">Powered by Panta on Solana</span>
           </div>
         </div>
       </footer>
