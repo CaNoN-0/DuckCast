@@ -10,7 +10,9 @@ export type MarketCategory =
   | 'Science'
   | 'Gaming'
   | 'Entertainment'
-  | 'Social';
+  | 'Social'
+  | 'Finance'
+  | 'Other';
 
 export type MarketSortOption =
   | 'Trending'
@@ -151,8 +153,15 @@ export interface PredictionMarket {
   timeline?: MarketTimelineEvent[];
   commentsList?: MarketComment[];
   // Panta Protocol Architecture Metadata
+  /** True when this market comes from the live Panta API (id is the on-chain event address). */
+  isPanta?: boolean;
+  /** Panta could not price this market (RPC unavailable); odds shown are placeholders. */
+  pricePending?: boolean;
+  pantaImage?: string | null;
+  endTimeSec?: number;
+  resolved?: boolean;
   pantaMarketType?: 'standard' | 'breaking';
-  pantaMarketPhase?: 'primary' | 'secondary' | 'resolving' | 'resolved';
+  pantaMarketPhase?: 'primary' | 'secondary' | 'resolving' | 'resolved' | 'cancelled';
   pantaFeePercent?: number; // 2.0% for primary, 1.5% for secondary
   disputeWindowEndsAt?: string;
   disputeStatus?: 'none' | 'disputed' | 'finalized';

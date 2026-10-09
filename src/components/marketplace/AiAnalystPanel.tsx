@@ -35,6 +35,8 @@ interface AiAnalystPanelProps {
   market: PredictionMarket;
   userPositionSide?: 'YES' | 'NO';
   onDraftThesisFill?: (text: string) => void;
+  /** Connected wallet, so the server can ground the AI in the user's verified Panta position */
+  wallet?: string;
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -52,7 +54,8 @@ export function AiAnalystPanel({
   onClose,
   market,
   userPositionSide,
-  onDraftThesisFill
+  onDraftThesisFill,
+  wallet
 }: AiAnalystPanelProps) {
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -105,7 +108,7 @@ export function AiAnalystPanel({
     setIsLoading(true);
 
     try {
-      const context = buildMarketContext(market, userPositionSide);
+      const context = buildMarketContext(market, userPositionSide, wallet);
       const apiHistory = newHistory.map((m) => ({
         role: m.role,
         text: m.text
@@ -153,7 +156,7 @@ export function AiAnalystPanel({
     setMessages((prev) => [...prev, userMsg]);
 
     try {
-      const context = buildMarketContext(market, userPositionSide);
+      const context = buildMarketContext(market, userPositionSide, wallet);
       const analysisText = await sendQuickAnalysis(context, type);
 
       const aiMsg: AiChatMessage = {
@@ -188,7 +191,7 @@ export function AiAnalystPanel({
     setMessages((prev) => [...prev, userMsg]);
 
     try {
-      const context = buildMarketContext(market, userPositionSide);
+      const context = buildMarketContext(market, userPositionSide, wallet);
       const critiqueResult = await critiqueThesis(context, thesisDraft, userPositionSide || 'YES');
 
       const aiMsg: AiChatMessage = {
@@ -278,7 +281,7 @@ export function AiAnalystPanel({
             {userPositionSide && (
               <div className="mt-2 text-[11px] font-medium text-emerald-700 bg-emerald-50/70 border border-emerald-200/60 px-2 py-1 rounded-md flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>You hold a position on <strong>{userPositionSide}</strong></span>
+                <span>Evaluating the <strong>{userPositionSide}</strong> side{market.isPanta ? " · grounded in live Panta data" : " · demo data"}</span>
               </div>
             )}
           </div>

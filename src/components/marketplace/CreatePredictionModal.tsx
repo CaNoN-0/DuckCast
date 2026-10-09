@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
 import { X, Eye, Sparkles, Check, HelpCircle } from 'lucide-react';
 import { MarketCategory, PredictionMarket } from '../../types/market';
+import { CreatePantaMarketForm } from './CreatePantaMarketForm';
 
 interface CreatePredictionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Demo mode: adds a local sample market */
   onCreateMarket: (newMarket: Partial<PredictionMarket>) => void;
+  /** Live mode: market is created on-chain through Panta */
+  liveMode?: boolean;
+  onPantaMarketCreated?: (marketId: string) => void;
+  onOpenWalletModal?: () => void;
 }
 
 const CATEGORIES: MarketCategory[] = [
@@ -25,7 +31,10 @@ const CATEGORIES: MarketCategory[] = [
 export function CreatePredictionModal({
   isOpen,
   onClose,
-  onCreateMarket
+  onCreateMarket,
+  liveMode = false,
+  onPantaMarketCreated,
+  onOpenWalletModal
 }: CreatePredictionModalProps) {
   const [question, setQuestion] = useState('');
   const [category, setCategory] = useState<MarketCategory>('Crypto');
@@ -38,6 +47,38 @@ export function CreatePredictionModal({
   const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
 
   if (!isOpen) return null;
+
+  if (liveMode) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
+        <div
+          className="bg-white border border-neutral-200 rounded-xl w-full max-w-[640px] shadow-lg my-8 overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <h2 className="text-lg font-bold font-display tracking-tight text-[#09090B]">Create a Panta Market</h2>
+              </div>
+              <p className="text-[11px] text-neutral-500 mt-0.5">Published on-chain on Solana. You pay the creation fee and earn creator fees after graduation.</p>
+            </div>
+            <button type="button" onClick={onClose} className="p-1 text-neutral-400 hover:text-neutral-700 rounded-md transition-colors cursor-pointer">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <CreatePantaMarketForm
+            onCancel={onClose}
+            onOpenWalletModal={() => onOpenWalletModal?.()}
+            onCreated={(marketId) => {
+              onClose();
+              onPantaMarketCreated?.(marketId);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

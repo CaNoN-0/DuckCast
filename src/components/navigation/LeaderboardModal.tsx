@@ -28,7 +28,8 @@ export function LeaderboardModal({ isOpen, onClose }: LeaderboardModalProps) {
                 Global Leaderboard
               </h3>
               <p className="text-xs text-neutral-500">
-                Top predictors, highest volume traders, and verifiable track records.
+                <span className="font-bold text-amber-700">Sample data.</span> Rankings go live once Panta markets
+                traded through DuckCast resolve.
               </p>
             </div>
           </div>

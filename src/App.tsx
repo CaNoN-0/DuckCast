@@ -12,7 +12,7 @@ import { WatchlistModal } from './components/navigation/WatchlistModal';
 import { SettingsModal } from './components/navigation/SettingsModal';
 import { WalletProvider, useSolanaWallet } from './wallet/WalletContext';
 import { shortenSolanaAddress } from './solana/config';
-import { MOCK_MARKETS } from './data/mockMarkets';
+import { MarketsProvider, useMarkets } from './context/MarketsContext';
 import { UserProfileData, DEFAULT_PROFILE } from './types/profile';
 
 function AppContent() {
@@ -28,6 +28,7 @@ function AppContent() {
     openWalletModal,
     disconnectWallet
   } = useSolanaWallet();
+  const { markets } = useMarkets();
 
   // Synchronized Profile State per connected wallet address
   const [userProfile, setUserProfile] = useState<UserProfileData>(() => {
@@ -109,7 +110,7 @@ function AppContent() {
         <WatchlistModal
           isOpen={watchlistModalOpen}
           onClose={() => setWatchlistModalOpen(false)}
-          markets={MOCK_MARKETS}
+          markets={markets}
           onSelectMarket={() => setCurrentPage('predictions')}
           onNavigateToPredictions={() => setCurrentPage('predictions')}
         />
@@ -130,7 +131,7 @@ function AppContent() {
           onOpenWalletModal={openWalletModal}
           onNavigateToPredictions={() => setCurrentPage('predictions')}
           onNavigateToHome={() => setCurrentPage('home')}
-          allMarkets={MOCK_MARKETS}
+          allMarkets={markets}
           onSelectMarket={() => setCurrentPage('predictions')}
           onOpenMenu={() => setMenuOpen(true)}
           userProfile={userProfile}
@@ -160,7 +161,7 @@ function AppContent() {
         <WatchlistModal
           isOpen={watchlistModalOpen}
           onClose={() => setWatchlistModalOpen(false)}
-          markets={MOCK_MARKETS}
+          markets={markets}
           onSelectMarket={() => setCurrentPage('predictions')}
           onNavigateToPredictions={() => setCurrentPage('predictions')}
         />
@@ -348,7 +349,7 @@ function AppContent() {
       <WatchlistModal
         isOpen={watchlistModalOpen}
         onClose={() => setWatchlistModalOpen(false)}
-        markets={MOCK_MARKETS}
+        markets={markets}
         onSelectMarket={() => setCurrentPage('predictions')}
         onNavigateToPredictions={() => setCurrentPage('predictions')}
       />
@@ -363,7 +364,9 @@ function AppContent() {
 export default function App() {
   return (
     <WalletProvider>
-      <AppContent />
+      <MarketsProvider>
+        <AppContent />
+      </MarketsProvider>
     </WalletProvider>
   );
 }

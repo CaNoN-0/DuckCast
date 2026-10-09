@@ -114,7 +114,7 @@ export function HighlightsSection({
                         ? `${m.trendingFrom}% → ${m.trendingTo}%`
                         : `${m.yesProbability}%`}
                     </span>
-                    <span className="text-[10px] text-emerald-700 font-extrabold">({m.trendingDelta || '+3%'})</span>
+                    {m.trendingDelta && <span className="text-[10px] text-emerald-700 font-extrabold">({m.trendingDelta})</span>}
                   </span>
                 </div>
                 <h4 className="text-[13px] font-bold font-display text-[#09090B] line-clamp-2 leading-snug mb-2">

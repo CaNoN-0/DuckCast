@@ -16,6 +16,10 @@ export interface AiChatMessage {
 }
 
 export interface MarketContextPayload {
+  /** Panta market address; when present the server grounds the AI in live Panta data. */
+  marketId?: string;
+  /** Connected wallet; lets the server look up the user's verified Panta position. */
+  wallet?: string;
   marketQuestion: string;
   category: string;
   yesProbability: number;
@@ -45,9 +49,12 @@ export interface MarketContextPayload {
 
 export function buildMarketContext(
   market: PredictionMarket,
-  userPositionSide?: 'YES' | 'NO'
+  userPositionSide?: 'YES' | 'NO',
+  wallet?: string
 ): MarketContextPayload {
   return {
+    marketId: market.isPanta ? market.id : undefined,
+    wallet: market.isPanta ? wallet : undefined,
     marketQuestion: market.question,
     category: market.category,
     yesProbability: market.yesProbability,
@@ -68,13 +75,8 @@ export function buildMarketContext(
       price: t.price,
       time: t.time
     })),
-    userPosition: userPositionSide
-      ? {
-          side: userPositionSide,
-          shares: 50,
-          amount: '$50.00'
-        }
-      : undefined
+    // Only the side being considered; real holdings are looked up server-side from Panta.
+    userPosition: userPositionSide ? { side: userPositionSide } : undefined
   };
 }
 
