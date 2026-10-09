@@ -329,9 +329,6 @@ export function MenuDrawer({
                       <User className="w-4 h-4 text-neutral-800 group-hover:text-black group-hover:scale-110 transition-all duration-200" />
                       <span className="group-hover:translate-x-0.5 transition-transform duration-200">Profile</span>
                     </div>
-                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded-[7px] border border-emerald-200">
-                      #14
-                    </span>
                   </button>
                 ) : (
                   /* If wallet is NOT connected: Profile option is replaced with Connect Wallet */

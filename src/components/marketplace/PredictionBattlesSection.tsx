@@ -3,30 +3,104 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { Swords, ThumbsUp, Flame, TrendingUp, Clock, ExternalLink, ShieldCheck } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Swords, ThumbsUp, Flame, Clock, ExternalLink, ShieldCheck } from 'lucide-react';
 import { PredictionMarket, PredictionBattle } from '../../types/market';
 import { INITIAL_PREDICTION_BATTLES } from '../../services/pantaService';
+import { socialApi, SocialBattle, getViewerId } from '../../services/socialApi';
+import { shortenSolanaAddress } from '../../solana/config';
+import { walletAvatar } from '../../utils/walletAvatar';
 import { HalftoneBackground } from './HalftoneBackground';
 
 interface PredictionBattlesSectionProps {
   onSelectMarket: (marketId: string) => void;
   onShowNotification: (msg: string) => void;
   allMarkets: PredictionMarket[];
+  /** Live mode: battles are derived from position-verified theses on real Panta markets. */
+  liveMode?: boolean;
+  viewerWallet?: string | null;
+}
+
+function toBattle(b: SocialBattle, market?: PredictionMarket): PredictionBattle {
+  const side = (t: SocialBattle['yes']) => ({
+    username: shortenSolanaAddress(t.wallet),
+    handle: t.position ? `${t.position.shares.toFixed(1)} ${t.side} shares` : 'signed thesis',
+    avatar: walletAvatar(t.wallet),
+    stakedUsdc: Math.round((t.position?.estValueUsdc ?? 0) * 100) / 100,
+    entryProb: t.side === 'YES' ? market?.yesProbability ?? 50 : market?.noProbability ?? 50,
+    thesis: t.text,
+    backingVotes: t.reactions.agree
+  });
+  return {
+    id: b.id,
+    marketId: b.marketId,
+    marketQuestion: market?.question || b.marketTitle,
+    category: market?.category || 'Other',
+    userYes: side(b.yes),
+    userNo: side(b.no),
+    totalBattlePotUsdc: Math.round(b.potUsdc * 100) / 100,
+    status: 'active',
+    timeRemaining: market?.timeRemaining || '—'
+  };
 }
 
 export function PredictionBattlesSection({
   onSelectMarket,
   onShowNotification,
-  allMarkets
+  allMarkets,
+  liveMode = false,
+  viewerWallet
 }: PredictionBattlesSectionProps) {
-  const [battles, setBattles] = useState<PredictionBattle[]>(INITIAL_PREDICTION_BATTLES);
+  const [battles, setBattles] = useState<PredictionBattle[]>(liveMode ? [] : INITIAL_PREDICTION_BATTLES);
+  const [thesisIds, setThesisIds] = useState<Record<string, { YES: string; NO: string }>>({});
   const [userVoted, setUserVoted] = useState<Record<string, 'YES' | 'NO'>>({});
+  const [loaded, setLoaded] = useState(!liveMode);
 
-  const handleVote = (battleId: string, side: 'YES' | 'NO', challengerHandle: string) => {
+  useEffect(() => {
+    if (!liveMode) {
+      setBattles(INITIAL_PREDICTION_BATTLES);
+      setLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    socialApi
+      .battles()
+      .then(({ items }) => {
+        if (cancelled) return;
+        setBattles(items.map((b) => toBattle(b, allMarkets.find((m) => m.id === b.marketId))));
+        setThesisIds(Object.fromEntries(items.map((b) => [b.id, { YES: b.yes.id, NO: b.no.id }])));
+        setUserVoted(
+          Object.fromEntries(
+            items
+              .map((b) => [b.id, b.yes.viewerReacted.agree ? 'YES' : b.no.viewerReacted.agree ? 'NO' : null] as const)
+              .filter(([, v]) => v !== null)
+          ) as Record<string, 'YES' | 'NO'>
+        );
+      })
+      .catch(() => setBattles([]))
+      .finally(() => !cancelled && setLoaded(true));
+    return () => {
+      cancelled = true;
+    };
+    // allMarkets changes every refresh; battles only need to be refetched when the mode changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveMode]);
+
+  const handleVote = async (battleId: string, side: 'YES' | 'NO', challengerHandle: string) => {
     if (userVoted[battleId]) {
       onShowNotification(`You already backed ${userVoted[battleId]} in this battle.`);
       return;
+    }
+
+    if (liveMode) {
+      const ids = thesisIds[battleId];
+      if (!ids) return;
+      try {
+        await socialApi.react(ids[side], 'agree', getViewerId(viewerWallet));
+      } catch (err) {
+        onShowNotification((err as Error).message || 'Could not record your vote.');
+        return;
+      }
     }
 
     setBattles((prev) =>
@@ -47,8 +121,28 @@ export function PredictionBattlesSection({
     );
 
     setUserVoted((prev) => ({ ...prev, [battleId]: side }));
-    onShowNotification(`Backed ${challengerHandle}'s ${side} thesis with community consensus!`);
+    onShowNotification(`Backed ${challengerHandle}'s ${side} thesis.`);
   };
+
+  if (liveMode && loaded && battles.length === 0) {
+    return (
+      <div className="bg-white border border-neutral-200/90 rounded-2xl p-5 sm:p-6 shadow-xs mb-8 relative overflow-hidden">
+        <HalftoneBackground opacity={0.06} className="pointer-events-none" />
+        <div className="relative z-10 flex items-start gap-3">
+          <div className="w-7 h-7 rounded-lg bg-[#09090B] flex items-center justify-center text-white shadow-2xs shrink-0">
+            <Swords className="w-4 h-4 text-amber-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold font-display text-[#09090B] tracking-tight">Prediction Battles</h2>
+            <p className="text-xs text-neutral-600 mt-1 max-w-xl">
+              Battles form automatically when two forecasters holding <strong>verified Panta positions</strong> post opposing,
+              wallet-signed theses on the same market. Buy a side on any market below and post your thesis to start one.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white border border-neutral-200/90 rounded-2xl p-5 sm:p-6 shadow-xs mb-8 relative overflow-hidden">
@@ -65,11 +159,18 @@ export function PredictionBattlesSection({
               Prediction Battles
             </h2>
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 font-mono-tabular">
-              Head-to-Head
+              {liveMode ? 'Head-to-Head' : 'Examples'}
             </span>
           </div>
           <p className="text-xs text-neutral-500 mt-1">
-            Challengers lock opposite positions on Panta markets. Back the strongest thesis with the community.
+            {liveMode ? (
+              <span className="inline-flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                Opposing theses from forecasters with verified Panta positions. Back the strongest argument.
+              </span>
+            ) : (
+              'Example battles (demo data). In live mode, battles are built from position-verified theses.'
+            )}
           </p>
         </div>
 
@@ -151,7 +252,7 @@ export function PredictionBattlesSection({
                     </p>
 
                     <div className="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs font-mono-tabular">
-                      <span className="text-[10px] text-neutral-500">Staked ${battle.userYes.stakedUsdc.toLocaleString()}</span>
+                      <span className="text-[10px] text-neutral-500">{liveMode ? "Holds ~" : "Staked "}${battle.userYes.stakedUsdc.toLocaleString()}</span>
                       <button
                         type="button"
                         onClick={() => handleVote(battle.id, 'YES', battle.userYes.handle)}
@@ -195,7 +296,7 @@ export function PredictionBattlesSection({
                     </p>
 
                     <div className="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs font-mono-tabular">
-                      <span className="text-[10px] text-neutral-500">Staked ${battle.userNo.stakedUsdc.toLocaleString()}</span>
+                      <span className="text-[10px] text-neutral-500">{liveMode ? "Holds ~" : "Staked "}${battle.userNo.stakedUsdc.toLocaleString()}</span>
                       <button
                         type="button"
                         onClick={() => handleVote(battle.id, 'NO', battle.userNo.handle)}

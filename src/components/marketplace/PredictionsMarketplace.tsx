@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   Plus,
@@ -19,9 +19,16 @@ import {
   PredictionMarket,
   MarketCategory,
   MarketSortOption,
-  MarketQuickFilter
+  MarketQuickFilter,
+  UserPredictionActivity
 } from '../../types/market';
-import { MOCK_MARKETS, MOCK_USER_ACTIVITIES, MOCK_LEADERBOARD } from '../../data/mockMarkets';
+import { MOCK_USER_ACTIVITIES, MOCK_LEADERBOARD } from '../../data/mockMarkets';
+import { useMarkets } from '../../context/MarketsContext';
+import { MarketSourceBanner, PoweredByPanta } from '../panta/PoweredByPanta';
+import { socialApi } from '../../services/socialApi';
+import { pantaApi } from '../../services/pantaApi';
+import { pantaToPredictionMarket } from '../../services/pantaAdapter';
+import { walletAvatar } from '../../utils/walletAvatar';
 import { MarketCard } from './MarketCard';
 import { HighlightsSection } from './HighlightsSection';
 import { CommunitySection } from './CommunitySection';
@@ -48,19 +55,21 @@ interface PredictionsMarketplaceProps {
   onOpenMenu?: () => void;
 }
 
-const CATEGORIES: MarketCategory[] = [
-  'All',
-  'Politics',
+// Display order; only categories that actually have markets are shown.
+const CATEGORY_ORDER: MarketCategory[] = [
   'Crypto',
   'Sports',
+  'Politics',
+  'Finance',
   'Technology',
   'Business',
+  'Entertainment',
   'Culture',
   'World',
   'Science',
   'Gaming',
-  'Entertainment',
-  'Social'
+  'Social',
+  'Other'
 ];
 
 const QUICK_FILTERS: MarketQuickFilter[] = [
@@ -79,8 +88,50 @@ export function PredictionsMarketplace({
   onOpenMenu
 }: PredictionsMarketplaceProps) {
   // State
-  const [markets, setMarkets] = useState<PredictionMarket[]>(MOCK_MARKETS);
+  const { markets, source, upsertMarket, refresh } = useMarkets();
+  const liveMode = source === 'panta';
   const [selectedCategory, setSelectedCategory] = useState<MarketCategory>('All');
+  const [communityActivities, setCommunityActivities] = useState<UserPredictionActivity[]>([]);
+
+  const CATEGORIES = useMemo<MarketCategory[]>(() => {
+    const present = new Set(markets.map((m) => m.category));
+    return ['All', ...CATEGORY_ORDER.filter((c) => present.has(c))];
+  }, [markets]);
+
+  // Live community feed: recent wallet-signed theses on Panta markets
+  useEffect(() => {
+    if (!liveMode) return;
+    let cancelled = false;
+    socialApi
+      .recentTheses()
+      .then(({ items }) => {
+        if (cancelled) return;
+        setCommunityActivities(
+          items.slice(0, 6).map((t) => {
+            const market = markets.find((m) => m.id === t.marketId);
+            return {
+              id: t.id,
+              username: `${t.wallet.slice(0, 4)}…${t.wallet.slice(-4)}`,
+              handle: t.position ? `${t.position.shares.toFixed(1)} ${t.side} shares` : 'signed',
+              avatar: walletAvatar(t.wallet),
+              side: t.side,
+              probability: market ? (t.side === 'YES' ? market.yesProbability : market.noProbability) : 50,
+              question: market?.question || t.marketTitle,
+              marketId: t.marketId,
+              time: new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              comment: t.text,
+              amount: t.position?.estValueUsdc != null ? `$${t.position.estValueUsdc.toFixed(2)}` : undefined
+            };
+          })
+        );
+      })
+      .catch(() => setCommunityActivities([]));
+    return () => {
+      cancelled = true;
+    };
+    // Refetch when switching into live mode, not on every price refresh
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveMode]);
   const [activeCenterNav, setActiveCenterNav] = useState<'Markets' | 'Battles' | 'Live' | 'Trending' | 'New' | 'Ending Soon'>('Markets');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<MarketSortOption>('Trending');
@@ -160,9 +211,9 @@ export function PredictionsMarketplace({
         if (probFilter === 'tossup' && (m.yesProbability < 40 || m.yesProbability > 60)) return false;
 
         // Volume filter
-        if (volFilter === '1m' && m.volumeNumeric < 1000000) return false;
-        if (volFilter === '3m' && m.volumeNumeric < 3000000) return false;
-        if (volFilter === '5m' && m.volumeNumeric < 5000000) return false;
+        if (volFilter === '1m' && m.volumeNumeric < 1_000) return false;
+        if (volFilter === '3m' && m.volumeNumeric < 10_000) return false;
+        if (volFilter === '5m' && m.volumeNumeric < 100_000) return false;
 
         // End Date filter
         if (endDateFilter === '24h' && m.timeMinutes > 1440) return false;
@@ -210,7 +261,21 @@ export function PredictionsMarketplace({
     setInitialDetailSide(side);
   };
 
-  // Handle Create Market
+  // Live mode: the modal created + registered the market on Panta; pull it into the feed and open it.
+  const handlePantaMarketCreated = async (marketId: string) => {
+    showNotification('Market created on Panta! Loading it from the catalog…');
+    try {
+      // Fetch directly: a brand-new zero-volume market may not be in the feed's top markets yet.
+      const { market, trades, priceHistory } = await pantaApi.market(marketId);
+      const mapped = pantaToPredictionMarket(market, { trades, history: priceHistory });
+      upsertMarket({ ...mapped, isNew: true });
+      handleOpenMarketDetail(mapped);
+    } catch {
+      refresh();
+    }
+  };
+
+  // Demo mode only: add a local, clearly-unpublished sample market
   const handleCreateMarket = (newMarketData: Partial<PredictionMarket>) => {
     const created: PredictionMarket = {
       id: `custom-${Date.now()}`,
@@ -247,13 +312,13 @@ export function PredictionsMarketplace({
       recentActivity: []
     };
 
-    setMarkets([created, ...markets]);
-    showNotification('Prediction market created and published successfully!');
+    upsertMarket(created);
+    showNotification('Demo market added locally (not published on-chain).');
   };
 
-  // Update market when traded or thesis added in detail view
+  // Update market when refreshed from Panta or a thesis is added in the detail view
   const handleMarketUpdated = (updated: PredictionMarket) => {
-    setMarkets((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    upsertMarket(updated);
     setSelectedMarket(updated);
   };
 
@@ -521,6 +586,9 @@ export function PredictionsMarketplace({
           </div>
         </div>
 
+        {/* DATA SOURCE: live Panta markets vs labelled demo data */}
+        <MarketSourceBanner />
+
         {/* HIGHLIGHTS SECTION: Trending, Live, Highest Volume, Ending Soon */}
         <HighlightsSection
           markets={markets}
@@ -536,6 +604,8 @@ export function PredictionsMarketplace({
             if (found) handleOpenMarketDetail(found);
           }}
           onShowNotification={showNotification}
+          liveMode={liveMode}
+          viewerWallet={connectedWallet?.address}
         />
 
         {/* MAIN MARKETPLACE HEADER */}
@@ -550,7 +620,9 @@ export function PredictionsMarketplace({
               </span>
             </div>
             <p className="text-xs sm:text-sm font-medium text-neutral-600 mt-1">
-              Trade on events happening around the world.
+              {liveMode
+                ? 'Live Panta markets on Solana. Every trade is signed by your wallet and settles in USDC.'
+                : 'Trade on events happening around the world.'}
             </p>
           </div>
 
@@ -672,9 +744,9 @@ export function PredictionsMarketplace({
                   className="w-full text-xs p-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-500 font-medium"
                 >
                   <option value="all">Any Volume</option>
-                  <option value="1m">&gt; $1M Volume</option>
-                  <option value="3m">&gt; $3M Volume</option>
-                  <option value="5m">&gt; $5M Volume</option>
+                  <option value="1m">&gt; $1K Volume</option>
+                  <option value="3m">&gt; $10K Volume</option>
+                  <option value="5m">&gt; $100K Volume</option>
                 </select>
               </div>
 
@@ -745,17 +817,19 @@ export function PredictionsMarketplace({
           </div>
         )}
 
-        {/* COMMUNITY SECTION */}
-        <CommunitySection
-          activities={MOCK_USER_ACTIVITIES}
-          onSelectMarketById={(mId) => {
-            const found = markets.find((m) => m.id === mId);
-            if (found) handleOpenMarketDetail(found);
-          }}
-        />
+        {/* COMMUNITY SECTION: live = wallet-signed theses on Panta markets; demo = samples */}
+        {(!liveMode || communityActivities.length > 0) && (
+          <CommunitySection
+            activities={liveMode ? communityActivities : MOCK_USER_ACTIVITIES}
+            onSelectMarketById={(mId) => {
+              const found = markets.find((m) => m.id === mId);
+              if (found) handleOpenMarketDetail(found);
+            }}
+          />
+        )}
 
-        {/* LEADERBOARD SECTION */}
-        <LeaderboardSection users={MOCK_LEADERBOARD} />
+        {/* LEADERBOARD SECTION (sample data; hidden when showing live Panta markets) */}
+        {!liveMode && <LeaderboardSection users={MOCK_LEADERBOARD} />}
       </main>
 
       {/* FOOTER */}
@@ -776,7 +850,7 @@ export function PredictionsMarketplace({
               Return Home
             </button>
             <span>·</span>
-            <span className="font-mono-tabular">Powered by Panta on Solana</span>
+            <PoweredByPanta />
           </div>
         </div>
       </footer>
@@ -786,6 +860,9 @@ export function PredictionsMarketplace({
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         onCreateMarket={handleCreateMarket}
+        liveMode={liveMode}
+        onPantaMarketCreated={handlePantaMarketCreated}
+        onOpenWalletModal={onOpenWalletModal}
       />
     </div>
   );

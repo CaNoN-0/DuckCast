@@ -5,7 +5,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import './appKit';
-import { useAppKit, useAppKitAccount, useDisconnect, useAppKitNetwork } from '@reown/appkit/react';
+import { useAppKit, useAppKitAccount, useDisconnect, useAppKitNetwork, useAppKitProvider } from '@reown/appkit/react';
+import type { Provider as SolanaProvider } from '@reown/appkit-adapter-solana/react';
 import {
   SolanaNetworkType,
   shortenSolanaAddress,
@@ -13,6 +14,7 @@ import {
 } from '../solana/config';
 import { getUsdcBalance, getSolBalance } from '../solana/connection';
 import { formatUsdc } from '../solana/usdc';
+import type { SolanaSigner } from '../solana/transactions';
 
 export type WalletConnectionState =
   | 'disconnected'
@@ -44,8 +46,8 @@ export interface WalletContextType {
   switchNetwork: (net: SolanaNetworkType) => Promise<void>;
   refreshBalances: () => Promise<void>;
   clearError: () => void;
-  // Dev mode helper to fund test USDC for frontend testing if balance is 0
-  addDemoUsdcFunds?: (amount: number) => void;
+  /** Signs Panta-built transactions; null until a wallet is connected. */
+  signer: SolanaSigner | null;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -55,10 +57,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const { address, isConnected, status } = useAppKitAccount();
   const { disconnect } = useDisconnect();
   const { caipNetwork } = useAppKitNetwork();
+  const { walletProvider } = useAppKitProvider<SolanaProvider>('solana');
 
   const [currentNetwork, setCurrentNetwork] = useState<SolanaNetworkType>(DEFAULT_SOLANA_NETWORK);
   const [usdcBalance, setUsdcBalance] = useState<number>(0);
-  const [solBalance, setSolBalance] = useState<number>(0.05); // Default fee buffer for testing
+  const [solBalance, setSolBalance] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -80,22 +83,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         getSolBalance(targetAddress, network)
       ]);
 
-      // Check if user has saved demo allocation in localStorage for frontend testing
-      let finalUsdc = fetchedUsdc;
-      try {
-        const customDemo = localStorage.getItem(`duckcast_usdc_${targetAddress.toLowerCase()}`);
-        if (customDemo !== null) {
-          finalUsdc = parseFloat(customDemo);
-        } else if (fetchedUsdc === 0) {
-          // In development mode, provide a default $250.00 USDC demo balance
-          // so prediction mechanics can be tested smoothly
-          finalUsdc = 250.00;
-          localStorage.setItem(`duckcast_usdc_${targetAddress.toLowerCase()}`, '250.00');
-        }
-      } catch {}
-
-      setUsdcBalance(finalUsdc);
-      setSolBalance(fetchedSol > 0 ? fetchedSol : 0.05);
+      // Real on-chain balances only — trades settle in real USDC on Panta.
+      setUsdcBalance(fetchedUsdc);
+      setSolBalance(fetchedSol);
     } catch (err: any) {
       console.warn('[Wallet] Balance fetch notice:', err);
     } finally {
@@ -168,16 +158,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }, [address, currentNetwork, fetchBalances]);
 
-  const addDemoUsdcFunds = useCallback((amount: number) => {
-    if (!address) return;
-    setUsdcBalance((prev) => {
-      const next = Math.max(0, prev + amount);
-      try {
-        localStorage.setItem(`duckcast_usdc_${address.toLowerCase()}`, next.toString());
-      } catch {}
-      return next;
-    });
-  }, [address]);
+  const signer: SolanaSigner | null = useMemo(() => {
+    if (!isConnected || !walletProvider) return null;
+    return {
+      signAndSendTransaction: walletProvider.signAndSendTransaction
+        ? (tx) => walletProvider.signAndSendTransaction(tx)
+        : undefined,
+      signTransaction: walletProvider.signTransaction
+        ? (tx) => walletProvider.signTransaction(tx)
+        : undefined,
+      signMessage: walletProvider.signMessage ? (msg) => walletProvider.signMessage(msg) : undefined
+    };
+  }, [isConnected, walletProvider]);
 
   return (
     <WalletContext.Provider
@@ -192,7 +184,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         switchNetwork: handleSwitchNetwork,
         refreshBalances,
         clearError: () => setError(null),
-        addDemoUsdcFunds
+        signer
       }}
     >
       {children}

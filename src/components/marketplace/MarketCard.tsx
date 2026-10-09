@@ -108,10 +108,16 @@ export function MarketCard({ market, onSelectMarket }: MarketCardProps) {
           <span className="text-neutral-400 font-normal">Vol: </span>
           <span className="font-bold text-[#09090B]">{market.volume}</span>
         </div>
-        <div className="flex items-center gap-1 font-semibold">
-          <Users className="w-3 h-3 text-neutral-400" />
-          <span>{market.traders.toLocaleString()} traders</span>
-        </div>
+        {market.isPanta && market.traders === 0 ? (
+          <span className="font-semibold text-neutral-500 capitalize">
+            {market.pricePending ? 'Price pending' : `${market.pantaMarketPhase || 'primary'} phase`}
+          </span>
+        ) : (
+          <div className="flex items-center gap-1 font-semibold">
+            <Users className="w-3 h-3 text-neutral-400" />
+            <span>{market.traders.toLocaleString()} traders</span>
+          </div>
+        )}
       </div>
 
       {/* Bottom Buttons: Yes / No with percentage */}
